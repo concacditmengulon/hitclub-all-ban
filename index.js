@@ -1,7 +1,6 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const { Mutex } = require('async-mutex');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -14,11 +13,11 @@ const MAX_HISTORY = 50;
 
 const latestResult100 = {
     "Phien": 0, "Xuc_xac_1": 0, "Xuc_xac_2": 0, "Xuc_xac_3": 0,
-    "Tong": 0, "Ket_qua": "Chua co", "id": "Tele@CsTool001"
+    "Tong": 0, "Ket_qua": "Chua co", "id": "djtuancon"
 };
 const latestResult101 = {
     "Phien": 0, "Xuc_xac_1": 0, "Xuc_xac_2": 0, "Xuc_xac_3": 0,
-    "Tong": 0, "Ket_qua": "Chua co", "id": "Tele@CsTool001"
+    "Tong": 0, "Ket_qua": "Chua co", "id": "djtuancon"
 };
 
 const history100 = [];
@@ -74,7 +73,7 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
                             const ket_qua = getTaiXiu(d1, d2, d3);
                             const result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
-                                "Tong": total, "Ket_qua": ket_qua, "id": "Tele@CsTool001"
+                                "Tong": total, "Ket_qua": ket_qua, "id": "djtuancon"
                             };
                             await updateResult(resultStore, history, mutex, result);
                             console.log(`[MD5] Phien ${sid} - Tong: ${total}, Ket qua: ${ket_qua}`);
@@ -88,7 +87,7 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
                             const ket_qua = getTaiXiu(d1, d2, d3);
                             const result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
-                                "Tong": total, "Ket_qua": ket_qua, "id": "Tele@CsTool001"
+                                "Tong": total, "Ket_qua": ket_qua, "id": "djtuancon"
                             };
                             await updateResult(resultStore, history, mutex, result);
                             console.log(`[TX] Phien ${sid} - Tong: ${total}, Ket qua: ${ket_qua}`);
@@ -99,6 +98,7 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
             }
         } catch (error) {
             console.error(`Error fetching API for gid=${gid}: ${error.message}`);
+            // Do not retry immediately, wait for a bit
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         }
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
