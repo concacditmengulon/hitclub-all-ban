@@ -13,11 +13,11 @@ const MAX_HISTORY = 50;
 
 const latestResult100 = {
     "Phien": 0, "Xuc_xac_1": 0, "Xuc_xac_2": 0, "Xuc_xac_3": 0,
-    "Tong": 0, "Ket_qua": "Chua co", "id": "djtuancon"
+    "Tong": 0, "Ket_qua": "Chua co", "id": "Tele@CsTool001"
 };
 const latestResult101 = {
     "Phien": 0, "Xuc_xac_1": 0, "Xuc_xac_2": 0, "Xuc_xac_3": 0,
-    "Tong": 0, "Ket_qua": "Chua co", "id": "djtuancon"
+    "Tong": 0, "Ket_qua": "Chua co", "id": "Tele@CsTool001"
 };
 
 const history100 = [];
@@ -35,6 +35,35 @@ function getTaiXiu(d1, d2, d3) {
     const total = d1 + d2 + d3;
     return total <= 10 ? "Xiu" : "Tai";
 }
+
+// =========================================================================
+// HÀM THUẬT TOÁN DỰ ĐOÁN TÀI XỈU
+// Vui lòng thay thế nội dung của hàm này bằng thuật toán của bạn
+// =========================================================================
+function predictResult(history) {
+    // Thuật toán ví dụ: Dự đoán ngược lại kết quả phiên trước
+    // Bạn có thể thay thế bằng thuật toán phức tạp của bạn ở đây
+    if (history.length === 0) {
+        return {
+            du_doan: "Chua co du lieu",
+            do_tin_cay: "0%",
+            giai_thich: "Khong co du lieu de phan tich."
+        };
+    }
+
+    const lastResult = history[0];
+    const prediction = lastResult.Ket_qua === "Tai" ? "Xiu" : "Tai";
+    const confidence = "55%"; // Ví dụ, bạn có thể tính toán con số này
+    const explanation = "Du doan dua tren phien truoc. Ket qua phien truoc la " + lastResult.Ket_qua;
+    
+    return {
+        du_doan: prediction,
+        do_tin_cay: confidence,
+        giai_thich: explanation
+    };
+}
+// =========================================================================
+
 
 async function updateResult(store, history, mutex, result) {
     const release = await mutex.acquire();
@@ -73,7 +102,7 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
                             const ket_qua = getTaiXiu(d1, d2, d3);
                             const result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
-                                "Tong": total, "Ket_qua": ket_qua, "id": "djtuancon"
+                                "Tong": total, "Ket_qua": ket_qua, "id": "Tele@CsTool001"
                             };
                             await updateResult(resultStore, history, mutex, result);
                             console.log(`[MD5] Phien ${sid} - Tong: ${total}, Ket qua: ${ket_qua}`);
@@ -87,7 +116,7 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
                             const ket_qua = getTaiXiu(d1, d2, d3);
                             const result = {
                                 "Phien": sid, "Xuc_xac_1": d1, "Xuc_xac_2": d2, "Xuc_xac_3": d3,
-                                "Tong": total, "Ket_qua": ket_qua, "id": "djtuancon"
+                                "Tong": total, "Ket_qua": ket_qua, "id": "Tele@CsTool001"
                             };
                             await updateResult(resultStore, history, mutex, result);
                             console.log(`[TX] Phien ${sid} - Tong: ${total}, Ket qua: ${ket_qua}`);
@@ -98,7 +127,6 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
             }
         } catch (error) {
             console.error(`Error fetching API for gid=${gid}: ${error.message}`);
-            // Do not retry immediately, wait for a bit
             await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
         }
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
@@ -109,7 +137,19 @@ async function pollApi(gid, mutex, resultStore, history, isMd5) {
 app.get("/api/taixiu", async (req, res) => {
     const release = await mutex100.acquire();
     try {
-        res.json(latestResult100);
+        const prediction = predictResult(history100);
+        const result = {
+            phien: latestResult100.Phien,
+            xuc_xac: `${latestResult100.Xuc_xac_1} - ${latestResult100.Xuc_xac_2} - ${latestResult100.Xuc_xac_3}`,
+            tong: latestResult100.Tong,
+            ket_qua: latestResult100.Ket_qua,
+            phien_sau: latestResult100.Phien + 1,
+            du_doan: prediction.du_doan,
+            do_tin_cay: prediction.do_tin_cay,
+            giai_thich: prediction.giai_thich,
+            id: latestResult100.id
+        };
+        res.json(result);
     } finally {
         release();
     }
@@ -118,7 +158,19 @@ app.get("/api/taixiu", async (req, res) => {
 app.get("/api/taixiumd5", async (req, res) => {
     const release = await mutex101.acquire();
     try {
-        res.json(latestResult101);
+        const prediction = predictResult(history101);
+        const result = {
+            phien: latestResult101.Phien,
+            xuc_xac: `${latestResult101.Xuc_xac_1} - ${latestResult101.Xuc_xac_2} - ${latestResult101.Xuc_xac_3}`,
+            tong: latestResult101.Tong,
+            ket_qua: latestResult101.Ket_qua,
+            phien_sau: latestResult101.Phien + 1,
+            du_doan: prediction.du_doan,
+            do_tin_cay: prediction.do_tin_cay,
+            giai_thich: prediction.giai_thich,
+            id: latestResult101.id
+        };
+        res.json(result);
     } finally {
         release();
     }
