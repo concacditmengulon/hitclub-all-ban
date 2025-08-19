@@ -37,12 +37,12 @@ function getTaiXiu(d1, d2, d3) {
 }
 
 // =========================================================================
-// HÀM THUẬT TOÁN DỰ ĐOÁN TÀI XỈU
-// Vui lòng thay thế nội dung của hàm này bằng thuật toán của bạn
+// HÀM THUẬT TOÁN DỰ ĐOÁN TÀI XỈU SIÊU VIP
+// Thuật toán nâng cấp dựa trên phân tích lịch sử: kết hợp Markov Chain để tính xác suất chuyển tiếp,
+// phát hiện các loại cầu (bệt, 1-1, random), và heuristic dựa trên chuỗi gần đây.
+// Không thể đảm bảo 100% chính xác vì trò chơi dựa trên ngẫu nhiên, nhưng tối ưu hóa dựa trên mẫu lịch sử.
 // =========================================================================
 function predictResult(history) {
-    // Thuật toán ví dụ: Dự đoán ngược lại kết quả phiên trước
-    // Bạn có thể thay thế bằng thuật toán phức tạp của bạn ở đây
     if (history.length === 0) {
         return {
             du_doan: "Chua co du lieu",
@@ -51,19 +51,114 @@ function predictResult(history) {
         };
     }
 
-    const lastResult = history[0];
-    const prediction = lastResult.Ket_qua === "Tai" ? "Xiu" : "Tai";
-    const confidence = "55%"; // Ví dụ, bạn có thể tính toán con số này
-    const explanation = "Du doan dua tren phien truoc. Ket qua phien truoc la " + lastResult.Ket_qua;
-    
+    // Chuyển Ket_qua thành 0: Xiu, 1: Tai để dễ tính toán
+    const sequence = history.map(res => res.Ket_qua === "Tai" ? 1 : 0);
+
+    // 1. Phát hiện loại cầu gần đây
+    let recentPattern = detectPattern(sequence.slice(0, 5)); // Xem 5 kết quả gần nhất
+
+    // 2. Sử dụng Markov Chain để tính xác suất chuyển tiếp
+    const markov = buildMarkovChain(sequence);
+    const lastState = sequence[0];
+    const probTai = markov[lastState][1]; // Xác suất next là Tai
+    const probXiu = markov[lastState][0]; // Xác suất next là Xiu
+
+    // 3. Kết hợp heuristic
+    let prediction;
+    let confidence = Math.max(probTai, probXiu) * 100;
+    let explanation = `Dựa trên Markov Chain: Xác suất Tai: ${probTai.toFixed(2)}, Xiu: ${probXiu.toFixed(2)}. `;
+
+    if (recentPattern === 'bet') {
+        // Cầu bệt: Nếu chuỗi < 4, tiếp tục; >=4, đảo
+        const streak = countStreak(sequence);
+        if (streak < 4) {
+            prediction = lastState === 1 ? "Tai" : "Xiu";
+            explanation += `Cầu bệt đang tiếp diễn (chuỗi ${streak}), dự đoán tiếp tục.`;
+        } else {
+            prediction = lastState === 1 ? "Xiu" : "Tai";
+            explanation += `Cầu bệt dài (${streak}), dự đoán đảo chiều.`;
+        }
+    } else if (recentPattern === '1-1') {
+        // Cầu 1-1: Dự đoán đảo chiều so với kết quả cuối
+        prediction = lastState === 1 ? "Xiu" : "Tai";
+        explanation += "Cầu 1-1 luân phiên, dự đoán đảo chiều.";
+    } else {
+        // Random hoặc fallback: Sử dụng Markov
+        prediction = probTai > probXiu ? "Tai" : "Xiu";
+        explanation += "Không phát hiện cầu rõ ràng, dựa vào xác suất chuyển tiếp.";
+    }
+
+    // Điều chỉnh độ tin cậy dựa trên độ dài lịch sử và sự khác biệt prob
+    const diff = Math.abs(probTai - probXiu);
+    confidence = Math.min(95, confidence + (diff * 50)); // Tối đa 95% để thực tế
+    confidence = confidence.toFixed(0) + "%";
+
+    // Nếu lịch sử ngắn (<5), giảm độ tin cậy
+    if (history.length < 5) {
+        confidence = "50%";
+        explanation += " Lịch sử ngắn, độ tin cậy thấp.";
+    }
+
     return {
         du_doan: prediction,
         do_tin_cay: confidence,
         giai_thich: explanation
     };
 }
-// =========================================================================
 
+// Helper: Xây dựng Markov Chain (ma trận chuyển tiếp)
+function buildMarkovChain(sequence) {
+    const transitions = [[0, 0], [0, 0]]; // [from Xiu: to Xiu, to Tai], [from Tai: to Xiu, to Tai]
+    let counts = [0, 0]; // Số lần xuất hiện Xiu, Tai
+
+    for (let i = 0; i < sequence.length - 1; i++) {
+        const from = sequence[i];
+        const to = sequence[i + 1];
+        transitions[from][to]++;
+        counts[from]++;
+    }
+
+    // Tính xác suất, fallback nếu count=0
+    const probs = [
+        [counts[0] > 0 ? transitions[0][0] / counts[0] : 0.5, counts[0] > 0 ? transitions[0][1] / counts[0] : 0.5],
+        [counts[1] > 0 ? transitions[1][0] / counts[1] : 0.5, counts[1] > 0 ? transitions[1][1] / counts[1] : 0.5]
+    ];
+
+    return probs;
+}
+
+// Helper: Phát hiện pattern gần đây
+function detectPattern(recent) {
+    if (recent.length < 2) return 'random';
+
+    // Kiểm tra cầu bệt: tất cả giống nhau
+    if (recent.every(s => s === recent[0])) return 'bet';
+
+    // Kiểm tra cầu 1-1: luân phiên
+    let isAlternating = true;
+    for (let i = 1; i < recent.length; i++) {
+        if (recent[i] === recent[i-1]) {
+            isAlternating = false;
+            break;
+        }
+    }
+    if (isAlternating) return '1-1';
+
+    return 'random';
+}
+
+// Helper: Đếm chuỗi liên tiếp hiện tại
+function countStreak(sequence) {
+    if (sequence.length === 0) return 0;
+    let streak = 1;
+    const last = sequence[0];
+    for (let i = 1; i < sequence.length; i++) {
+        if (sequence[i] !== last) break;
+        streak++;
+    }
+    return streak;
+}
+// =========================================================================
 
 async function updateResult(store, history, mutex, result) {
     const release = await mutex.acquire();
